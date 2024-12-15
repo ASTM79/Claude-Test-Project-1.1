@@ -6,6 +6,7 @@ import { MarketDataProvider } from './market';
 import { TradeExecutor } from './executor';
 import { PositionManager } from './position';
 import { RiskManager } from './risk';
+import Anthropic from '@anthropic-ai/sdk';
 
 config();
 
@@ -17,14 +18,20 @@ class TradingAgent extends ElizaAgent {
   private positionManager: PositionManager;
   private riskManager: RiskManager;
   private startingEquity: number;
+  private anthropic: Anthropic;
 
   constructor() {
     super({
       name: 'AbstractTrader',
-      model: process.env.MODEL_NAME || 'gpt-4',
-      memory: true
+      model: process.env.MODEL_NAME || 'claude-3-opus-20240229',
+      memory: true,
+      apiKey: process.env.ANTHROPIC_API_KEY
     });
     
+    this.anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    });
+
     this.agw = new AGWClient({
       rpcUrl: process.env.ABSTRACT_RPC_URL,
       privateKey: process.env.PRIVATE_KEY
@@ -38,7 +45,7 @@ class TradingAgent extends ElizaAgent {
     this.executor = new TradeExecutor(this.agw);
     this.positionManager = new PositionManager();
     this.riskManager = new RiskManager();
-    this.startingEquity = 10000; // Initial equity
+    this.startingEquity = 10000;
   }
 
   async init() {
