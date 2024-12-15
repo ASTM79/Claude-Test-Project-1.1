@@ -2,7 +2,10 @@
   "name": "eliza-abstract-trader",
   "version": "0.1.0",
   "scripts": {
-    "start": "ts-node src/index.ts"
+    "start": "ts-node src/index.ts",
+    "test:back": "ts-node src/test.ts backtest",
+    "test:live": "ts-node src/test.ts live",
+    "build": "tsc"
   },
   "dependencies": {
     "@abstract-foundation/agw-client": "^1.0.0",
