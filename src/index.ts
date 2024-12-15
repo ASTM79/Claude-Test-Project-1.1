@@ -1,17 +1,22 @@
 import { config } from 'dotenv';
 import { ElizaAgent } from '@eliza-foundation/core';
 import { AGWClient } from '@abstract-foundation/agw-client';
-import { SimpleMovingAverageStrategy } from './strategy';
+import { AdvancedTradingStrategy } from './strategy';
 import { MarketDataProvider } from './market';
 import { TradeExecutor } from './executor';
+import { PositionManager } from './position';
+import { RiskManager } from './risk';
 
 config();
 
 class TradingAgent extends ElizaAgent {
   private agw: AGWClient;
-  private strategy: SimpleMovingAverageStrategy;
+  private strategy: AdvancedTradingStrategy;
   private market: MarketDataProvider;
   private executor: TradeExecutor;
+  private positionManager: PositionManager;
+  private riskManager: RiskManager;
+  private startingEquity: number;
 
   constructor() {
     super({
@@ -25,12 +30,15 @@ class TradingAgent extends ElizaAgent {
       privateKey: process.env.PRIVATE_KEY
     });
 
-    this.strategy = new SimpleMovingAverageStrategy();
+    this.strategy = new AdvancedTradingStrategy();
     this.market = new MarketDataProvider(
       process.env.ABSTRACT_RPC_URL!,
       process.env.PAIR_ADDRESS!
     );
     this.executor = new TradeExecutor(this.agw);
+    this.positionManager = new PositionManager();
+    this.riskManager = new RiskManager();
+    this.startingEquity = 10000; // Initial equity
   }
 
   async init() {
@@ -43,17 +51,53 @@ class TradingAgent extends ElizaAgent {
     setInterval(async () => {
       try {
         const price = await this.market.getPrice();
-        const signal = this.strategy.analyze(price);
-        
-        if (signal) {
-          const txHash = await this.executor.executeTrade(signal);
-          console.log(`Executed trade: ${signal.action} ${signal.amount} ${signal.asset} at ${signal.price}`);
-          console.log(`Transaction hash: ${txHash}`);
-        }
+        await this.checkExistingPositions(price);
+        await this.evaluateNewTrades(price);
       } catch (error) {
         console.error('Trading cycle failed:', error);
       }
-    }, 60000); // Check every minute
+    }, 60000);
+  }
+
+  private async checkExistingPositions(currentPrice: number) {
+    for (const [asset, position] of Array.from(this.positionManager['positions'])) {
+      if (this.riskManager.checkStopLoss(position, currentPrice) ||
+          this.riskManager.checkTakeProfit(position, currentPrice)) {
+        const closedPosition = this.positionManager.closePosition(asset);
+        if (closedPosition) {
+          await this.executor.executeTrade({
+            asset,
+            action: 'sell',
+            amount: closedPosition.amount,
+            price: currentPrice,
+            confidence: 1
+          });
+          console.log(`Closed position: ${asset} at ${currentPrice}`);
+        }
+      }
+    }
+  }
+
+  private async evaluateNewTrades(currentPrice: number) {
+    const equity = this.startingEquity + this.positionManager.getTotalExposure();
+    if (this.riskManager.checkDrawdown(equity, this.startingEquity)) {
+      console.log('Maximum drawdown reached, stopping new trades');
+      return;
+    }
+
+    const signal = this.strategy.analyze(currentPrice);
+    if (!signal) return;
+
+    if (!this.riskManager.validateTradeSize(signal.amount, signal.price)) {
+      console.log('Trade size exceeds risk limits');
+      return;
+    }
+
+    if (signal.action === 'buy' && 
+        this.positionManager.addPosition(signal.asset, signal.amount, signal.price)) {
+      await this.executor.executeTrade(signal);
+      console.log(`Executed trade: ${signal.action} ${signal.amount} ${signal.asset} at ${signal.price}`);
+    }
   }
 }
 
