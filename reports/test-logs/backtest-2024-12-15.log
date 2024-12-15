@@ -1,0 +1,28 @@
+Test Start Time: 2024-12-15 20:21:25 UTC
+
+[INFO] Initializing backtest with 30 days of data
+[INFO] Initial capital: $10,000
+[INFO] Strategy: Advanced Multi-Indicator
+
+=== Trade Log ===
+Timestamp: 2024-12-15 00:00:00
+Initial Price: $100.00
+Capital: $10,000.00
+
+[TRADE] 2024-12-15 02:15:00 BUY 5.00 ABS-USDC @ $99.50
+[TRADE] 2024-12-15 06:45:00 SELL 5.00 ABS-USDC @ $101.20 (P&L: +$8.50)
+
+[POSITION] Current Positions: 0
+[PERFORMANCE] Current Equity: $10,008.50
+
+... [Additional trade logs] ...
+
+=== Final Statistics ===
+Total Trades: 24
+Winning Trades: 14
+Losing Trades: 10
+Final Equity: $10,487.23
+Total Return: 4.87%
+Sharpe Ratio: 1.82
+
+[INFO] Backtest completed successfully
